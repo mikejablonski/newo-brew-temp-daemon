@@ -23,6 +23,7 @@
 
 import time, math
 import RPi.GPIO as GPIO
+import sqlite3
 #import numpy
 
 def init():
@@ -105,6 +106,8 @@ def readTemp():
 		raise FaultError("Low threshold limit (Cable fault/short)")
 	if ((status & 0x04) == 1):
 		raise FaultError("Overvoltage or Undervoltage Error") 
+
+	return temp_C
 	
 def writeRegister(regNum, dataByte):
 	GPIO.output(csPin, GPIO.LOW)
@@ -182,7 +185,7 @@ def calcPT100Temp(RTD_ADC_Code):
 	#print "Straight Line Approx. Temp: %f degC" % temp_C_line
 	#print "Callendar-Van Dusen Temp (degC > 0): %f degC" % temp_C
 	#print "Solving Full Callendar-Van Dusen using numpy: %f" %  temp_C_numpy
-	print "%f" % temp_C
+	#print "%f" % temp_C
 	if (temp_C < 0): #use straight line approximation if less than 0
 		# Can also use python lib numpy to solve cubic
 		# Should never get here in this application
@@ -201,6 +204,16 @@ if __name__ == "__main__":
 	mosiPin = 10
 	clkPin = 11
 	init()
-	readTemp()
+	temp = readTemp()
+
+	conn=sqlite3.connect("temp.db")
+	curs=conn.cursor()
+
+	curs.execute("UPDATE temp SET timestamp = datetime('now'), temp = (?)", (temp,))
+
+	# commit the changes
+	conn.commit()
+
+	conn.close()
 	
 	GPIO.cleanup()
